@@ -32,13 +32,13 @@ function onLoad()
         color = "Red",
         label = "at\nsmaller\nwidths\nit\nis\nless\nnoticeable",
         position = vec2{1,1},
-        align = vec2{-1, 0},
+        align = {-1, 0},
     })
     objCreateButton({
         color = "Red",
         label = "but this longer one one overlaps a bit",
         position = vec2{1,0},
-        align = vec2{-1, 0},
+        align = {-1, 0},
     })
   end
 end

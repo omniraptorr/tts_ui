@@ -120,8 +120,8 @@ local function labelFactory(obj)
     ---@field click_function nil | string | fun() | fun(obj: tts__Object) | fun(obj: tts__Object, player: tts__PlayerHandColor) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean)
     ---@field label string
     ---@field click_function nil | string
-    ---@field position nil | ge_tts__Vector2 @ scaled by the object's xz size. default {0,0}
-    ---@field align nil | ge_tts__Vector2 @ scaled by the object's button size. default {0,0}
+    ---@field position nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's xz size. default {0,0}
+    ---@field align nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's button size. default {0,0}
     ---@field y nil | number @ scaled by the object's y size. default 1
     ---@field height nil | number @ defaults to 900 (since font size is 1000)
     ---@field width  nil | number @ defaults to a length based on the label length
@@ -173,7 +173,7 @@ local function labelFactory(obj)
 
         Logger.log("transform scale is " .. tostring(objTransformScale))
         if params.align then
-            local align = --[[---@not nil]] params.align
+            local align = vec2(--[[---@not nil]] params.align)
             -- todo: can't get them to line up :(
             localObjPos.x = localObjPos.x + align.x * buttonWidth / 2 * buttonScale * finalScale.x / objTransformScale.x
             localObjPos.z = localObjPos.z + align.y * buttonHeight / 2 * buttonScale * finalScale.z / objTransformScale.z
