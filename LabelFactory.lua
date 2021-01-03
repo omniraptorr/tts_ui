@@ -4,10 +4,9 @@ local LoggerStatic = require("ge_tts/Logger")
 local Logger = LoggerStatic()
 Logger.setFilterLevel(LoggerStatic.DEBUG)
 local getTransformScale = require("ge_tts/ObjectUtils").getTransformScale
---require("UIUtils/BBCodeStringMethods")
+require("UIUtils/BBCodeStringMethods")
 
 local original_gmatch = string.gmatch
----@param self string
 ---@param pattern string
 ---@return fun():string
 function string:gmatch(pattern)
@@ -48,7 +47,7 @@ local charWidthTable = {
 
 ---@param str string
 local function calcButtonSize(str) -- todo: improve precision etc
-    --str = str:stripBBCode()
+    str = str:stripBBCode()
     local len, height = 0, 0
     for line in magicLines(str) do
         height = height + 1
@@ -97,30 +96,28 @@ local funcPrefix = "__alignedButtonCallback_";
 
 ---@param obj tts__Object
 local function labelFactory(obj)
-    -- obj.clearButtons() -- todo: add to tts-types. no params, always returns true
-
     local objTransformScale = Vector(getTransformScale(obj))
 
     local halfSize = obj.getBoundsNormalized().size
         :scale(objTransformScale)
         :scale(Vector(-0.5, 0.5, 0.5)) -- for some reason button coords have the x inverted, we just sneak that in here.
 
-    local baseRotation = Vector(0,180,0)
-
+    local baseRotation = 180
 
     if invertedImgNames[obj.name] then
         halfSize:scale(invertedImgVec)
-        baseRotation = Vector(0,0,0)
+        baseRotation = 0
     end
 
-    local originalOffset = obj.getBounds().offset -- the offset changes as you add buttons that extend the bounds, so we have to get it in advance.
+    local originalOffset = obj.getBounds().offset:scale(objTransformScale) -- the offset changes as you add buttons that extend the bounds, so we have to get it in advance.
 
     -- todo: add support for axis aligned rotation at least.
-    ---@shape AlignedButtonParameters : tts__CreateButtonParameters
+    ---@shape AlignedButtonParameters : tts__ButtonParameters
     ---@field click_function nil | string | fun() | fun(obj: tts__Object) | fun(obj: tts__Object, player: tts__PlayerHandColor) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean)
     ---@field label string
     ---@field click_function nil | string
     ---@field position nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's xz size. default {0,0}
+    ---@field rotation nil | number | tts__VectorShape @ y axis rotation
     ---@field align nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's button size. default {0,0}
     ---@field y nil | number @ scaled by the object's y size. default 1
     ---@field height nil | number @ defaults to 900 (since font size is 1000)
@@ -135,6 +132,7 @@ local function labelFactory(obj)
         end
         local buttonHeight = params.height or numLines * baseLineHeight
         local buttonWidth = params.width or computedWidth
+
         local finalScale = baseScale:copy()
         if type(params.scale) == "number" then
             finalScale:scale(--[[---@type number]] params.scale)
@@ -142,7 +140,21 @@ local function labelFactory(obj)
             finalScale:scale(Vector(--[[---@type tts__VectorShape]] params.scale))
         end
 
-        local rotation = params.rotation or baseRotation -- not actually supported
+        local rotation = baseRotation
+        local realButtonHeight, realButtonWidth = buttonHeight, buttonWidth
+        if params.rotation then
+            local rotParam = --[[---@not nil]] params.rotation
+            if type(rotParam) == "table" then
+                rotation = rotation + (--[[---@type tts__NumVectorShape]] rotParam)[2]
+            else -- it's a number
+                rotation = rotation + --[[---@type number]] rotParam
+            end
+            -- reference https://i.imgur.com/WKTTzSt.png
+            local cos = math.abs(math.cos(math.rad(rotation)))
+            local sin = math.abs(math.sin(math.rad(rotation)))
+            realButtonHeight = buttonHeight * cos + buttonWidth * sin
+            realButtonWidth = buttonWidth * cos + buttonHeight * sin
+        end
 
         ---@type string
         local funcName = funcPrefix
@@ -167,41 +179,36 @@ local function labelFactory(obj)
         if math.abs(localObjPos.y) == 1 then
             localObjPos.y = localObjPos.y * 1.01 -- dirty fix to prevent z fighting
         end
-        localObjPos.y = --[[---@not nil]] localObjPos.y / objTransformScale.y
 
-        localObjPos:scale(halfSize)
+        localObjPos:scale(halfSize):sub(originalOffset)
 
         Logger.log("transform scale is " .. tostring(objTransformScale))
+        Logger.log("offset is " .. tostring(originalOffset))
         if params.align then
             local align = vec2(--[[---@not nil]] params.align)
             -- todo: can't get them to line up :(
-            localObjPos.x = localObjPos.x + align.x * buttonWidth / 2 * buttonScale * finalScale.x / objTransformScale.x
-            localObjPos.z = localObjPos.z + align.y * buttonHeight / 2 * buttonScale * finalScale.z / objTransformScale.z
+            localObjPos.x = localObjPos.x + align.x * realButtonWidth / 2 * buttonScale * finalScale.x / objTransformScale.x
+            localObjPos.z = localObjPos.z + align.y * realButtonHeight / 2 * buttonScale * finalScale.z / objTransformScale.z
         end
 
-        localObjPos:sub(originalOffset)
+        local finalRotation = Vector(0, rotation, 0)
+        if obj.is_face_down then
+            localObjPos.x = -localObjPos.x
+            localObjPos.y = -localObjPos.y
+            finalRotation.z = 180
+        end
 
-        local finalParams = --[[---@type AlignedButtonParameters]] TableUtils.merge(params, {
+        local finalParams = TableUtils.merge(params, {
             click_function = funcName,
             position = localObjPos,
             width = buttonWidth,
             font_size = fontSize,
             height = buttonHeight,
             scale = finalScale,
-            rotation = rotation,
+            rotation = finalRotation,
         })
 
-        if obj.is_face_down then
-            localObjPos.x = -localObjPos.x
-            localObjPos.y = -localObjPos.y
-            if params.rotation then
-                finalParams.rotation = Vector(--[[---@not nil]] params.rotation):setAt('z', 180)
-            else
-                finalParams.rotation = {0,0,180}
-            end
-        end
-
-        obj.createButton(--[[---@type tts__CreateButtonParameters]] finalParams)
+        obj.createButton(--[[---@type tts__ButtonParameters]] finalParams)
     end
 
     return out
