@@ -95,6 +95,7 @@ local funcPrefix = "__alignedButtonCallback_";
 (--[[---@type table<string, any>]] _G)[funcPrefix] = function() end
 
 ---@param obj tts__Object
+---@return fun(params: LabelParams): tts__ButtonParameters
 local function labelFactory(obj)
     local objTransformScale = Vector(getTransformScale(obj))
 
@@ -112,7 +113,7 @@ local function labelFactory(obj)
     local originalOffset = obj.getBounds().offset:scale(objTransformScale) -- the offset changes as you add buttons that extend the bounds, so we have to get it in advance.
 
     -- todo: add support for axis aligned rotation at least.
-    ---@shape AlignedButtonParameters : tts__ButtonParameters
+    ---@shape LabelParams : tts__ButtonParameters
     ---@field click_function nil | string | fun() | fun(obj: tts__Object) | fun(obj: tts__Object, player: tts__PlayerHandColor) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean)
     ---@field label string
     ---@field click_function nil | string
@@ -124,8 +125,13 @@ local function labelFactory(obj)
     ---@field width  nil | number @ defaults to a length based on the label length
     ---@field scale nil | number | tts__VectorShape
 
-    ---@param params AlignedButtonParameters
-    local function out(params)
+    ---@overload fun(params: LabelParams): tts__ButtonParameters
+    ---@param params LabelParams
+    ---@param nilOrCreate nil | boolean @ whether to actually spawn the label. default true
+    ---@return tts__ButtonParameters
+    local function out(params, nilOrCreate)
+        local create = nilOrCreate == nil and true or false
+
         local computedWidth, numLines = 0, 1
         if params.label then
             computedWidth, numLines = calcButtonSize(params.label)
@@ -208,7 +214,11 @@ local function labelFactory(obj)
             rotation = finalRotation,
         })
 
-        obj.createButton(--[[---@type tts__ButtonParameters]] finalParams)
+        if create then
+            obj.createButton(--[[---@type tts__ButtonParameters]] finalParams)
+        end
+
+        return --[[---@type tts__ButtonParameters]] finalParams
     end
 
     return out
