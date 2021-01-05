@@ -6,18 +6,11 @@ Logger.setFilterLevel(LoggerStatic.DEBUG)
 local getTransformScale = require("ge_tts/ObjectUtils").getTransformScale
 require("UIUtils/BBCodeStringMethods")
 
-local original_gmatch = string.gmatch
----@param pattern string
----@return fun():string
-function string:gmatch(pattern)
-    return --[[---@type fun():string]] original_gmatch(--[[---@type string]] self, pattern)
-end
-
 -- ripped from https://stackoverflow.com/a/19329565/592606
 ---@param s string
 local function magicLines(s)
     if s:sub(-1)~="\n" then s=s.."\n" end
-    return s:gmatch("(.-)\n")
+    return --[[---@type fun(): string]] s:gmatch("(.-)\n") -- cast to string since capture is not empty
 end
 
 -- ripped from https://gist.github.com/tjakubo2/7b6248e765163ffcf9963ab1f59f3e18
@@ -46,12 +39,11 @@ local charWidthTable = {
 }
 
 ---@param str string
-local function calcButtonSize(str) -- todo: improve precision etc
+local function calcButtonSize(str) -- tod o: improve precision etc
     str = str:stripBBCode()
     local len, height = 0, 0
-    for line in magicLines(str) do
+    for l in magicLines(str) do
         height = height + 1
-        local l = --[[---@type string]] line -- for luanalysis :|
         local newLen = 0
         for i = 1, #l do
             local c = l:sub(i,i)
@@ -95,7 +87,6 @@ local funcPrefix = "__alignedButtonCallback_";
 (--[[---@type table<string, any>]] _G)[funcPrefix] = function() end
 
 ---@param obj tts__Object
----@return fun(params: LabelParams): tts__ButtonParameters
 local function labelFactory(obj)
     local objTransformScale = Vector(getTransformScale(obj))
 
@@ -114,7 +105,7 @@ local function labelFactory(obj)
 
     -- todo: add support for axis aligned rotation at least.
     ---@shape LabelParams : tts__ButtonParameters
-    ---@field click_function nil | string | fun() | fun(obj: tts__Object) | fun(obj: tts__Object, player: tts__PlayerHandColor) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean)
+    ---@field click_function nil | string | fun() | fun(obj: tts__Object) | fun(obj: tts__Object, player: tts__PlayerHandColor) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean, index: number)
     ---@field label string
     ---@field click_function nil | string
     ---@field position nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's xz size. default {0,0}
@@ -124,11 +115,12 @@ local function labelFactory(obj)
     ---@field height nil | number @ defaults to 900 (since font size is 1000)
     ---@field width  nil | number @ defaults to a length based on the label length
     ---@field scale nil | number | tts__VectorShape
+    ---@field index nil | number
 
     ---@overload fun(params: LabelParams): tts__ButtonParameters
     ---@param params LabelParams
     ---@param nilOrCreate nil | boolean @ whether to actually spawn the label. default true
-    ---@return tts__ButtonParameters
+    ---@return tts__EditButtonParameters
     local function out(params, nilOrCreate)
         local create = nilOrCreate == nil and true or false
 
@@ -204,7 +196,8 @@ local function labelFactory(obj)
             finalRotation.z = 180
         end
 
-        local finalParams = TableUtils.merge(params, {
+
+        local finalParams = --[[---@type tts__EditButtonParameters]] TableUtils.merge(params, {
             click_function = funcName,
             position = localObjPos,
             width = buttonWidth,
@@ -215,10 +208,15 @@ local function labelFactory(obj)
         })
 
         if create then
-            obj.createButton(--[[---@type tts__ButtonParameters]] finalParams)
+            if params.index then
+                obj.editButton(finalParams)
+            else
+                obj.createButton(finalParams)
+                finalParams.index = #obj.getButtons() - 1
+            end
         end
 
-        return --[[---@type tts__ButtonParameters]] finalParams
+        return --[[---@type tts__EditButtonParameters]] finalParams
     end
 
     return out
