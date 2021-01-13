@@ -39,7 +39,7 @@ local charWidthTable = {
 }
 
 ---@param str string
-local function calcButtonSize(str) -- tod o: improve precision etc
+local function calcButtonSize(str) -- todo: improve precision etc
     str = str:stripBBCode()
     local len, height = 0, 0
     for l in magicLines(str) do
@@ -84,7 +84,7 @@ local baseScale = Vector(0.1, 0.1, 0.1)
 
 local funcCount = 0
 local funcPrefix = "__alignedButtonCallback_";
-(--[[---@type table<string, any>]] _G)[funcPrefix] = function() end
+(--[[---@type table<string, any>]] _G)[funcPrefix] = function() end -- dummy func for labels with no callback
 
 ---@param obj tts__Object
 local function labelFactory(obj)
@@ -103,11 +103,12 @@ local function labelFactory(obj)
 
     local originalOffset = obj.getBounds().offset:scale(objTransformScale) -- the offset changes as you add buttons that extend the bounds, so we have to get it in advance.
 
+    ---@alias labelCallback string | fun() | fun(player: tts__PlayerHandColor) | fun(player: tts__PlayerHandColor, labelState: LabelParams) | fun(player: tts__PlayerHandColor, labelState: LabelParams, alt_click: boolean) | fun(player: tts__PlayerHandColor, labelState: LabelParams, alt_click: boolean, obj: tts__Object)
+
     -- todo: add support for axis aligned rotation at least.
     ---@shape LabelParams : tts__ButtonParameters
-    ---@field click_function nil | string | fun() | fun(obj: tts__Object) | fun(obj: tts__Object, player: tts__PlayerHandColor) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean) | fun(obj: tts__Object, player: tts__PlayerHandColor, alt_click: boolean, index: number)
+    ---@field click_function nil | labelCallback
     ---@field label string
-    ---@field click_function nil | string
     ---@field position nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's xz size. default {0,0}
     ---@field rotation nil | number | tts__VectorShape @ y axis rotation
     ---@field align nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's button size. default {0,0}
@@ -117,11 +118,16 @@ local function labelFactory(obj)
     ---@field scale nil | number | tts__VectorShape
     ---@field index nil | number
 
-    ---@overload fun(params: LabelParams): tts__ButtonParameters
-    ---@param params LabelParams
+    ---@shape EditLabelParams : LabelParams
+    ---@field index number
+
+    ---@generic P : LabelParams
+    ---@overload fun<P : LabelParams>(params: P): EditLabelParams
+    ---@param labelParams P
     ---@param nilOrCreate nil | boolean @ whether to actually spawn the label. default true
-    ---@return tts__EditButtonParameters
-    local function out(params, nilOrCreate)
+    ---@return EditLabelParams
+    local function out(labelParams, nilOrCreate)
+        local params = TableUtils.copy(labelParams)
         local create = nilOrCreate == nil and true or false
 
         local computedWidth, numLines = 0, 1
@@ -209,14 +215,21 @@ local function labelFactory(obj)
 
         if create then
             if params.index then
-                obj.editButton(finalParams)
+                local highestIndex = #obj.getButtons() - 1
+                if highestIndex < params.index then
+                    obj.createButton(finalParams)
+                    Logger.log("setLabel - creating label with index" .. highestIndex .. "higher than param index " .. params.index)
+                    params.index = highestIndex + 1
+                else
+                    obj.editButton(finalParams)
+                end
             else
                 obj.createButton(finalParams)
-                finalParams.index = #obj.getButtons() - 1
+                params.index = #obj.getButtons() - 1
             end
         end
 
-        return --[[---@type tts__EditButtonParameters]] finalParams
+        return --[[---@type EditLabelParams]] params
     end
 
     return out
