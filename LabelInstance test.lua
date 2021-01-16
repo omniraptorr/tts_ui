@@ -17,7 +17,7 @@ function onLoad()
     local sc_board = instanceFromGUID("74868d")
 
 
-    ---@type tts__Object[]
+    ---@type LabelInstance[]
     local instances = {
         card,
         deck,
