@@ -12,8 +12,7 @@ local setLabelFactory = require("UIUtils/LabelFactory")
 
 -- overloads for how the class will be constructed
 ---@class static_LabelInstance : ge_tts__static_Instance
----@overload fun(savedState: LabelInstance_SavedState): LabelInstance
----@overload fun(object: tts__Object): LabelInstance
+---@overload fun(objOrSavedState: LabelInstance_SavedState | tts__Object): LabelInstance
 ---@overload fun(object: tts__Object, nilOrData: nil | labels,): LabelInstance
 ---@overload fun(guid: string, object: tts__Container): LabelInstance
 ---@overload fun(guid: string, object: tts__Container, nilOrData: nil | labels): LabelInstance

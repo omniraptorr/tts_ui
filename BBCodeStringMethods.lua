@@ -3,7 +3,7 @@ function string:addColorTag(arg)
     ---@type tts__Color
     local argColor
     if type(arg) == "table" then
-        argColor = Color(--[[---@type tts__Color | tts__NumColorShape | tts__CharColorShape]] arg)
+        argColor = Color(--[[---@type tts__Color]] arg)
     elseif type(arg) == "string" then
         argColor = Color.fromString(--[[---@type tts__PlayerColor]] arg)
     elseif type(arg) == "userdata" then

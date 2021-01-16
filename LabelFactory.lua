@@ -3,8 +3,14 @@ local vec2 = require("ge_tts/Vector2")
 local LoggerStatic = require("ge_tts/Logger")
 local Logger = LoggerStatic()
 Logger.setFilterLevel(LoggerStatic.DEBUG)
-local getTransformScale = require("ge_tts/ObjectUtils").getTransformScale
 require("UIUtils/BBCodeStringMethods")
+
+---@param obj tts__Object
+local function getTransformScale(obj)
+    local rotation = obj.getRotation()
+    local onesVector = Vector(1, 1, 1):rotateOver('z', rotation.z):rotateOver('x', rotation.x):rotateOver('y', rotation.y)
+    return Vector(obj.positionToLocal(onesVector:add(obj.getPosition())))
+end
 
 -- ripped from https://stackoverflow.com/a/19329565/592606
 ---@param s string
@@ -65,7 +71,7 @@ end
 
 -- some custom objects have the image flipped so it's actually upside down in local coords
 -- since we care about alignment relative to the image we need to correct this
--- todo: add names into here as they come up
+-- todo: add names into here as they come up. also test with 3d model
 ---@type table<string, boolean>
 local invertedImgNames = {
     Card = true,
@@ -94,28 +100,31 @@ local function labelFactory(obj)
         :scale(objTransformScale)
         :scale(Vector(-0.5, 0.5, 0.5)) -- for some reason button coords have the x inverted, we just sneak that in here.
 
-    local baseRotation = 180
-
+    local baseRotation = 0
     if invertedImgNames[obj.name] then
         halfSize:scale(invertedImgVec)
-        baseRotation = 0
     end
 
     local originalOffset = obj.getBounds().offset:scale(objTransformScale) -- the offset changes as you add buttons that extend the bounds, so we have to get it in advance.
 
     ---@alias labelCallback string | fun() | fun(player: tts__PlayerHandColor) | fun(player: tts__PlayerHandColor, labelState: LabelParams) | fun(player: tts__PlayerHandColor, labelState: LabelParams, alt_click: boolean) | fun(player: tts__PlayerHandColor, labelState: LabelParams, alt_click: boolean, obj: tts__Object)
 
-    -- todo: add support for axis aligned rotation at least.
-    ---@shape LabelParams : tts__ButtonParameters
+    ---@shape LabelParams
     ---@field click_function nil | labelCallback
     ---@field label string
     ---@field position nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's xz size. default {0,0}
-    ---@field rotation nil | number | tts__VectorShape @ y axis rotation
     ---@field align nil | ge_tts__Vector2 | ge_tts__Vec2Shape @ scaled by the object's button size. default {0,0}
     ---@field y nil | number @ scaled by the object's y size. default 1
-    ---@field height nil | number @ defaults to 900 (since font size is 1000)
-    ---@field width  nil | number @ defaults to a length based on the label length
+    ---@field rotation nil | number | tts__VectorShape @ y axis rotation
     ---@field scale nil | number | tts__VectorShape
+    ---@field width  nil | number @ defaults to a length based on the label length
+    ---@field height nil | number @ defaults to 900 (since font size is 1000)
+    ---@field font_size nil | number @Size the label font will be, relative to the Object. Defaults to 100.
+    ---@field color nil | tts__ColorShape | tts__PlayerColor @A Color for the clickable button. Defaults to {r=1, g=1, b=1}.
+    ---@field font_color nil | tts__ColorShape @A Color for the label text.  Defaults to {r=0, g=0, b=0}.
+    ---@field hover_color nil | tts__ColorShape @A Color for the background during mouse-over.
+    ---@field press_color nil | tts__ColorShape @A Color for the background when clicked.
+    ---@field tooltip nil | string @Popup of text, similar to how an Object's name is displayed on mouseover.  Defaults to ''.
     ---@field index nil | number
 
     ---@shape EditLabelParams : LabelParams
@@ -123,7 +132,7 @@ local function labelFactory(obj)
 
     ---@generic P : LabelParams
     ---@overload fun<P : LabelParams>(params: P): EditLabelParams
-    ---@param labelParams P
+    ---@param labelParams LabelParams
     ---@param nilOrCreate nil | boolean @ whether to actually spawn the label. default true
     ---@return EditLabelParams
     local function out(labelParams, nilOrCreate)
@@ -215,8 +224,9 @@ local function labelFactory(obj)
 
         if create then
             if params.index then
+                local index = --[[---@not nil]] params.index
                 local highestIndex = #obj.getButtons() - 1
-                if highestIndex < params.index then
+                if highestIndex < index then
                     obj.createButton(finalParams)
                     Logger.log("setLabel - creating label with index" .. highestIndex .. "higher than param index " .. params.index)
                     params.index = highestIndex + 1
