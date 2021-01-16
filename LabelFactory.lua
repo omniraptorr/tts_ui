@@ -5,12 +5,7 @@ local Logger = LoggerStatic()
 Logger.setFilterLevel(LoggerStatic.DEBUG)
 require("UIUtils/BBCodeStringMethods")
 
----@param obj tts__Object
-local function getTransformScale(obj)
-    local rotation = obj.getRotation()
-    local onesVector = Vector(1, 1, 1):rotateOver('z', rotation.z):rotateOver('x', rotation.x):rotateOver('y', rotation.y)
-    return Vector(obj.positionToLocal(onesVector:add(obj.getPosition())))
-end
+local getTransformScale = require("ge_tts/ObjectUtils").getTransformScale
 
 -- ripped from https://stackoverflow.com/a/19329565/592606
 ---@param s string
