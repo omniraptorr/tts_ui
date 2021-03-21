@@ -5,17 +5,10 @@ local setLabelFactory = require("UIUtils/LabelFactory")
 
 ---@class LabelInstance : ge_tts__Instance
 
----@alias labels EditLabelParams[]
-
----@shape LabelInstance_SavedState : ge_tts__Instance_SavedState
----@field labels nil | labels
-
 -- overloads for how the class will be constructed
 ---@class static_LabelInstance : ge_tts__static_Instance
----@overload fun(objOrSavedState: LabelInstance_SavedState | tts__Object): LabelInstance
----@overload fun(object: tts__Object, nilOrData: nil | labels,): LabelInstance
----@overload fun(guid: string, object: tts__Container): LabelInstance
----@overload fun(guid: string, object: tts__Container, nilOrData: nil | labels): LabelInstance
+---@overload fun(objectOrSavedState: tts__Object | ge_tts__Instance_SavedState): LabelInstance
+---@overload fun(guid: string, container: tts__Container): LabelInstance
 local LabelInstance = {}
 
 LabelInstance.INSTANCE_TYPE = "Labeled Instance"
@@ -26,52 +19,32 @@ local function isContainer(obj)
     return type(obj) == "userdata" and (--[[---@type tts__Object]] obj).tag == "Bag" or (--[[---@type tts__Object]] obj).tag == "Deck"
 end
 
-setmetatable(LabelInstance, TableUtils.merge((Instance), {
-    ---@param objOrGUIDOrSavedState tts__Object | string | LabelInstance_SavedState
-    ---@param nilOrLabelsOrContainer nil | labels | tts__Container
-    ---@param nilOrLabels nil | labels
-    __call = function(_, objOrGUIDOrSavedState, nilOrLabelsOrContainer, nilOrLabels)
+setmetatable(LabelInstance, TableUtils.merge(Instance, {
+    ---@param classTable static_LabelInstance
+    ---@param objOrGUIDOrSavedState tts__Object | string | ge_tts__Instance_SavedState
+    ---@param nilOrDataOrContainer nil | tts__Container
+    __call = function(classTable, objOrGUIDOrSavedState, nilOrDataOrContainer)
         ---@type LabelInstance
         local self
 
-        ---@type labels
-        local labels = {}
-
         -- handling the various overloads
         if LabelInstance.isSavedState(objOrGUIDOrSavedState) then
-            local savedState = --[[---@type LabelInstance_SavedState]] objOrGUIDOrSavedState
-            self = --[[---@type LabelInstance]] Instance(savedState)
-            if savedState.labels then
-                labels = --[[---@type labels]] savedState.labels
-            end
-        elseif type(objOrGUIDOrSavedState) == "string" and isContainer(nilOrLabelsOrContainer) then
+            self = --[[---@type LabelInstance]] Instance(--[[---@type ge_tts__Instance_SavedState]] objOrGUIDOrSavedState)
+        elseif type(objOrGUIDOrSavedState) == "string" and isContainer(nilOrDataOrContainer) then
             local guid = --[[---@type string]] objOrGUIDOrSavedState
-            self = --[[---@type LabelInstance]] Instance(guid, --[[---@type tts__Container]] nilOrLabelsOrContainer)
+            self = --[[---@type LabelInstance]] Instance(guid, --[[---@type tts__Container]] nilOrDataOrContainer)
             Logger.assert(self.getContainerPosition(), "Instance(): guid " .. guid .. " doesn't exist in container!") -- todo: move this check to Instance and make it optional
-            if nilOrLabels then
-                labels = --[[---@type labels]] nilOrLabels
-            end
         elseif type(objOrGUIDOrSavedState) == "userdata" then
             self =  --[[---@type LabelInstance]] Instance(--[[---@type tts__Object]] objOrGUIDOrSavedState)
-            if nilOrLabelsOrContainer then
-                labels = --[[---@type labels]] nilOrLabelsOrContainer
-            end
         else
             error("bad arguments to constructor!")
         end
 
-        function self.notInContainer() -- technically an object could contain an object with guid same as itself but meh
+        function self.notInContainer() -- technically an object could contain an object with guid same as itself but meh. won't fix
             return self.getInstanceGuid() == self.getObject().getGUID()
         end
 
         local setLabel = setLabelFactory(self.getObject())
-
-        -- now we create any labels we got from the constructor
-        if self.notInContainer() then
-            labels = TableUtils.map(labels, function(label)
-                return setLabel(label)
-            end)
-        end
 
         ---@generic P : LabelParams
         ---@overload fun<P : LabelParams>(params: P): EditLabelParams
@@ -79,36 +52,8 @@ setmetatable(LabelInstance, TableUtils.merge((Instance), {
         ---@param nilOrCreate nil | boolean @ whether to actually spawn the label. default true
         ---@return EditLabelParams
         function self.setLabel(labelParams, nilOrCreate)
-            Logger.assert(self.notInContainer(), "tried to make label while inside container")
-            local label = setLabel(labelParams, nilOrCreate)
-            labels[label.index] = label
-            return label
-        end
-
-        function self.onSpawned()
-            setLabel = setLabelFactory(self.getObject())
-            labels = TableUtils.map(labels, function(label)
-                return setLabel(label)
-            end)
-        end
-
-        function self.clearLabels()
-            local realObj = self.getObject()
-            TableUtils.map(labels, function(label)
-                return realObj.removeButton(label.index)
-            end)
-            labels = {}
-        end
-
-        local superSave = self.save
-        function self.save()
-            if next(labels) then
-                return TableUtils.merge(superSave(), {
-                    labels = labels,
-                })
-            else
-                return superSave()
-            end
+            Logger.assert(self.notInContainer(), "error: tried to set label while inside container!")
+            return setLabel(labelParams, nilOrCreate == nil and true or false)
         end
 
         return self

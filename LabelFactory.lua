@@ -5,6 +5,10 @@ local Logger = LoggerStatic()
 Logger.setFilterLevel(LoggerStatic.DEBUG)
 require("UIUtils/BBCodeStringMethods")
 
+-- todo: again, this shouldn't be necessary once we get tts-types params sorted out
+---@alias color tts__Color | tts__ColorShape | tts__PlayerColor
+
+
 ---@param obj tts__Object
 local function getTransformScale(obj)
     local rotation = obj.getRotation()
@@ -120,10 +124,10 @@ local function labelFactory(obj)
     ---@field width  nil | number @ defaults to a length based on the label length
     ---@field height nil | number @ defaults to 900 (since font size is 1000)
     ---@field font_size nil | number @Size the label font will be, relative to the Object. Defaults to 100.
-    ---@field color nil | tts__ColorShape | tts__PlayerColor @A Color for the clickable button. Defaults to {r=1, g=1, b=1}.
-    ---@field font_color nil | tts__ColorShape @A Color for the label text.  Defaults to {r=0, g=0, b=0}.
-    ---@field hover_color nil | tts__ColorShape @A Color for the background during mouse-over.
-    ---@field press_color nil | tts__ColorShape @A Color for the background when clicked.
+    ---@field color nil | color @A Color for the clickable button. Defaults to {r=1, g=1, b=1}.
+    ---@field font_color nil | color @A Color for the label text.  Defaults to {r=0, g=0, b=0}.
+    ---@field hover_color nil | color @A Color for the background during mouse-over.
+    ---@field press_color nil | color @A Color for the background when clicked.
     ---@field tooltip nil | string @Popup of text, similar to how an Object's name is displayed on mouseover.  Defaults to ''.
     ---@field index nil | number
 
