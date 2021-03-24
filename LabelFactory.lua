@@ -141,7 +141,7 @@ local function labelFactory(obj)
     ---@return EditLabelParams
     local function out(labelParams, nilOrCreate)
         local params = TableUtils.copy(labelParams)
-        local create = nilOrCreate == nil and true or false
+        local create = nilOrCreate == nil and true or nilOrCreate
 
         local computedWidth, numLines = 0, 1
         if params.label then
@@ -173,14 +173,19 @@ local function labelFactory(obj)
             realButtonWidth = buttonWidth * cos + buttonHeight * sin
         end
 
+        local callback = params.click_function
+        local function wrappedCallback(obj, player_color, alt_click)
+            return callback(player_color, params, obj)
+        end
+
         ---@type string
-        local funcName = funcPrefix
+        local funcName
         if type(params.click_function) == "function" then
             funcCount = funcCount + 1
             funcName = funcPrefix .. tostring(funcCount);
-            (--[[---@type table<string, any>]] _G)[funcName] = params.click_function
+            (--[[---@type table<string, any>]] _G)[funcName] = wrappedCallback
         elseif type(params.click_function) == "string" then
-            funcName = --[[---@type string]] params.click_function
+            funcName = --[[---@type string]] wrappedCallback
         end
 
         local localObjPos = Vector(0, 1.01, 0)
@@ -199,8 +204,8 @@ local function labelFactory(obj)
 
         localObjPos:scale(halfSize):sub(originalOffset)
 
-        Logger.log("transform scale is " .. tostring(objTransformScale))
-        Logger.log("offset is " .. tostring(originalOffset))
+        -- Logger.log("transform scale is " .. tostring(objTransformScale))
+        -- Logger.log("offset is " .. tostring(originalOffset))
         if params.align then
             local align = vec2(--[[---@not nil]] params.align)
             -- todo: can't get them to line up :(
@@ -232,6 +237,7 @@ local function labelFactory(obj)
                 local highestIndex = #obj.getButtons() - 1
                 if highestIndex < index then
                     obj.createButton(finalParams)
+                    print("created")
                     Logger.log("setLabel - creating label with index" .. highestIndex .. "higher than param index " .. params.index)
                     params.index = highestIndex + 1
                 else
@@ -241,6 +247,8 @@ local function labelFactory(obj)
                 obj.createButton(finalParams)
                 params.index = #obj.getButtons() - 1
             end
+        else
+            print("dry")
         end
 
         return --[[---@type EditLabelParams]] params
